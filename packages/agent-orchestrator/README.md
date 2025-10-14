@@ -1,305 +1,282 @@
-# ElizaOS Multi-Agent Orchestrator
+# @elizaos/agent-orchestrator
 
-> **Status**: 🚧 Under Active Development (v0.1.0)
+Multi-agent orchestration system for automated software development with ElizaOS.
 
-A comprehensive multi-agent orchestration system for automated software development workflows.
+## Features
 
-## 🎯 Overview
+### Core Components
 
-The ElizaOS Multi-Agent Orchestrator enables autonomous software development through coordinated multi-agent workflows. It manages 9 specialized agents that work together to transform Product Requirement Documents (PRDs) into fully implemented, tested, and deployed software.
+- **MessageBus**: Event-driven communication with priority routing and dead letter queue
+- **AgentRegistry**: Agent discovery, health monitoring, and load balancing
+- **TaskQueue**: Priority-based task scheduling with dependency resolution
+- **WorkflowEngine**: 8-phase workflow execution with checkpoints and rollback
+- **StateManager**: Transactional state management with snapshots
+- **RepositoryAnalyzer**: Code analysis and metrics
+- **PRDParser**: Product requirements document parsing
 
-## ✨ Features
+### Workflow Phases
 
-- **🤖 9 Specialized Agents**: Project Manager, Research, Architecture, Coder, Testing, Debug, Documentation, DevOps, and Security
-- **📡 Event-Driven Communication**: Priority-based message bus for inter-agent communication
-- **🔄 Workflow Orchestration**: Automated task scheduling with dependency resolution
-- **📦 Repository Management**: Git operations and file management
-- **🌐 Web Interface**: Real-time monitoring and control dashboard
-- **🔔 Notifications**: Completion alerts and progress updates
-- **💾 State Persistence**: Workflow recovery and history tracking
+1. **Planning** - Analyze requirements and create execution plan
+2. **Research** - Gather information and dependencies
+3. **Design** - Create architecture and design documents
+4. **Implementation** - Write code and implement features
+5. **Testing** - Run tests and validate functionality
+6. **Review** - Code review and quality assurance
+7. **Deployment** - Deploy changes to production
+8. **Monitoring** - Monitor performance and errors
 
-## 🏗️ Architecture
+## Installation
+
+```bash
+npm install @elizaos/agent-orchestrator
+```
+
+## Quick Start
+
+```typescript
+import { MultiAgentOrchestrator } from "@elizaos/agent-orchestrator";
+
+// Initialize orchestrator
+const orchestrator = new MultiAgentOrchestrator();
+await orchestrator.initialize();
+
+// Register agents
+const registry = orchestrator.getAgentRegistry();
+await registry.registerAgent({
+  id: "planner-001",
+  name: "Planning Agent",
+  type: "planner",
+  capabilities: ["planning", "requirements-analysis"],
+  status: "idle",
+  metadata: {}
+});
+
+// Create workflow
+const workflowEngine = orchestrator.getWorkflowEngine();
+const workflowId = await workflowEngine.createWorkflow(
+  "Build Feature X",
+  "Implement new feature according to PRD",
+  { prdUrl: "https://..." }
+);
+
+// Add tasks
+workflowEngine.addTask(
+  workflowId,
+  "planning",
+  "planner",
+  "Analyze requirements"
+);
+
+// Start workflow
+await workflowEngine.startWorkflow(workflowId);
+```
+
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────┐
-│         Web UI (Real-time Dashboard)        │
-└─────────────┬───────────────────────────────┘
-              │
-┌─────────────▼───────────────────────────────┐
-│     API Server + WebSocket (Express/WS)     │
-└─────────────┬───────────────────────────────┘
-              │
-┌─────────────▼───────────────────────────────┐
-│         Workflow Orchestration Engine        │
-│  ┌─────────────────────────────────────┐    │
-│  │    Task Scheduler + State Manager   │    │
-│  └─────────────────────────────────────┘    │
-└─────────────┬───────────────────────────────┘
-              │
-┌─────────────▼───────────────────────────────┐
-│         Message Bus (Event-Driven)          │
-│      Agent Registry + Priority Queue        │
-└─────┬─────┬─────┬─────┬─────┬─────┬─────┬──┘
-      │     │     │     │     │     │     │
-┌─────▼─┐ ┌─▼───┐ ┌─▼───┐ ┌─▼───┐ ┌─▼───┐ ...
-│  PM   │ │ Res │ │ Arch│ │Code │ │Test │
-│ Agent │ │Agent│ │Agent│ │Agent│ │Agent│
-└───────┘ └─────┘ └─────┘ └─────┘ └─────┘
+│         MultiAgentOrchestrator              │
+├─────────────────────────────────────────────┤
+│                                             │
+│  ┌──────────────┐      ┌──────────────┐   │
+│  │  MessageBus  │◄────►│AgentRegistry │   │
+│  └──────────────┘      └──────────────┘   │
+│         ▲                      ▲           │
+│         │                      │           │
+│  ┌──────▼──────┐      ┌────────▼──────┐   │
+│  │  TaskQueue  │◄────►│StateManager   │   │
+│  └─────────────┘      └───────────────┘   │
+│         ▲                      ▲           │
+│         │                      │           │
+│  ┌──────▼──────────────────────▼──────┐   │
+│  │       WorkflowEngine                │   │
+│  └─────────────────────────────────────┘   │
+│                                             │
+│  ┌──────────────────┐  ┌─────────────┐    │
+│  │RepositoryAnalyzer│  │  PRDParser  │    │
+│  └──────────────────┘  └─────────────┘    │
+└─────────────────────────────────────────────┘
 ```
 
-## 🚀 Quick Start
+## API Reference
 
-### Prerequisites
-
-- Bun >= 1.0.0
-- Git
-- Node.js >= 18 (for compatibility)
-
-### Installation
-
-```bash
-# Install dependencies
-cd packages/agent-orchestrator
-bun install
-
-# Build the package
-bun run build
-
-# Run tests
-bun test
-```
-
-### Development
-
-```bash
-# Watch mode for development
-bun run dev
-
-# Start server in development mode
-bun run start:dev
-
-# Run tests in watch mode
-bun test --watch
-```
-
-## 📚 Documentation
-
-- [Implementation Roadmap](./docs/IMPLEMENTATION_ROADMAP.md) - Detailed 34-step implementation guide
-- [Architecture Guide](./docs/ARCHITECTURE.md) - System architecture and design decisions (Coming soon)
-- [Agent Development](./docs/AGENTS.md) - Guide for creating custom agents (Coming soon)
-- [API Reference](./docs/API.md) - REST API and WebSocket documentation (Coming soon)
-
-## 🧩 Core Components
-
-### Agents
-
-1. **Project Manager Agent** - Workflow coordination and task decomposition
-2. **Research Agent** - Technical research and documentation gathering
-3. **Architecture Agent** - System design and technology selection
-4. **Coder Agent** - Code implementation and refactoring
-5. **Testing Agent** - Test generation and execution
-6. **Debug Agent** - Error analysis and bug fixing
-7. **Documentation Agent** - Technical writing and documentation
-8. **DevOps Agent** - CI/CD and deployment configuration
-9. **Security Agent** - Security review and vulnerability scanning
-
-### Communication System
-
-- **Message Bus**: Event-driven communication with priority queuing
-- **Agent Registry**: Agent discovery and capability matching
-- **Message Queue**: Persistent priority-based message delivery
-
-### Orchestration
-
-- **Workflow Engine**: Task scheduling and execution management
-- **State Manager**: Workflow state persistence and recovery
-- **PRD Parser**: Requirement extraction and task generation
-- **Task Scheduler**: Dependency resolution and parallel execution
-
-### Repository Management
-
-- **Repository Manager**: Git operations (clone, branch, commit, push)
-- **File Manager**: Safe file operations with validation
-- **Change Tracker**: Diff generation and conflict detection
-
-## 🔧 Configuration
-
-Create a `.env` file in the package root:
-
-```env
-# Repository Configuration
-REPOSITORY_URL=https://github.com/your-org/your-repo
-REPOSITORY_BRANCH=main
-REPOSITORY_PATH=./workspace
-
-# GitHub Token (optional, for private repos)
-GITHUB_TOKEN=your_github_token
-
-# Server Configuration
-API_PORT=3000
-WS_PORT=3001
-
-# Agent Configuration
-AGENT_TIMEOUT=300000
-MAX_RETRIES=3
-
-# State Persistence
-STATE_PATH=./state/workflow.json
-```
-
-## 🎮 Usage
-
-### Starting a Workflow
+### MessageBus
 
 ```typescript
-import { WorkflowEngine } from "@elizaos/agent-orchestrator";
-
-const engine = new WorkflowEngine({
-  repository: {
-    url: "https://github.com/your-org/your-repo",
-    branch: "main",
-    path: "./workspace"
-  },
-  prd: {
-    path: "./examples/sample-prd.md"
-  }
-});
-
-await engine.initialize();
-const workflowId = await engine.startWorkflow();
-
-console.log(`Workflow started: ${workflowId}`);
-```
-
-### Adding Requirements Dynamically
-
-```typescript
-await engine.addRequirement(workflowId, {
-  title: "Add user authentication",
-  description: "Implement JWT-based authentication",
+// Publish message
+messageBus.publish({
+  id: "msg-001",
+  type: "task",
   priority: "high",
-  acceptanceCriteria: [
-    "Users can register and login",
-    "JWT tokens are issued on login",
-    "Protected routes verify tokens"
-  ]
+  timestamp: new Date(),
+  payload: { /* ... */ }
+});
+
+// Subscribe to messages
+messageBus.subscribe("task", (message) => {
+  console.log("Received:", message);
 });
 ```
 
-### Monitoring Progress
+### AgentRegistry
 
 ```typescript
-// Via WebSocket
-const ws = new WebSocket('ws://localhost:3001');
-
-ws.on('message', (data) => {
-  const event = JSON.parse(data);
-  console.log('Event:', event.type, event.data);
+// Register agent
+await registry.registerAgent({
+  id: "agent-001",
+  name: "Code Generator",
+  type: "generator",
+  capabilities: ["code-generation", "refactoring"],
+  status: "idle"
 });
 
-// Via API
-const status = await fetch(`http://localhost:3000/api/workflows/${workflowId}`);
-const workflow = await status.json();
+// Find agents by capability
+const agents = registry.findAgentsByCapability("code-generation");
 
-console.log(`Progress: ${workflow.progress}%`);
-console.log(`Status: ${workflow.status}`);
+// Update agent status
+registry.updateAgentStatus("agent-001", "busy");
 ```
 
-## 🧪 Testing
+### TaskQueue
+
+```typescript
+// Enqueue task
+await taskQueue.enqueueTask({
+  id: "task-001",
+  type: "code-generation",
+  priority: 8,
+  payload: { /* ... */ },
+  dependencies: ["task-000"]
+});
+
+// Dequeue task
+const task = await taskQueue.dequeueTask();
+
+// Complete task
+await taskQueue.completeTask("task-001", { result: "success" });
+```
+
+### WorkflowEngine
+
+```typescript
+// Create workflow
+const workflowId = await engine.createWorkflow(
+  "Feature Implementation",
+  "Build feature X"
+);
+
+// Add tasks
+engine.addTask(
+  workflowId,
+  WorkflowPhase.PLANNING,
+  "planner",
+  "Create plan",
+  { prd: "..." }
+);
+
+// Start workflow
+await engine.startWorkflow(workflowId);
+
+// Monitor progress
+engine.on("phase:completed", ({ workflowId, phase }) => {
+  console.log(`Phase ${phase} completed`);
+});
+```
+
+### StateManager
+
+```typescript
+// Initialize state
+stateManager.initializeState(workflowId, {
+  step: 0,
+  data: {}
+});
+
+// Update state
+stateManager.updateState(workflowId, {
+  step: 1,
+  result: "completed"
+});
+
+// Create snapshot
+const snapshotId = stateManager.createSnapshot(workflowId);
+
+// Restore snapshot
+stateManager.restoreSnapshot(workflowId, snapshotId);
+```
+
+## Events
+
+The orchestrator emits various events for monitoring:
+
+```typescript
+// Workflow events
+workflowEngine.on("workflow:created", (workflow) => {});
+workflowEngine.on("workflow:started", (workflow) => {});
+workflowEngine.on("workflow:completed", (workflow) => {});
+workflowEngine.on("workflow:failed", ({ workflow, error }) => {});
+
+// Phase events
+workflowEngine.on("phase:started", ({ workflowId, phase }) => {});
+workflowEngine.on("phase:completed", ({ workflowId, phase }) => {});
+
+// Task events
+workflowEngine.on("task:started", ({ workflowId, task }) => {});
+workflowEngine.on("task:completed", ({ workflowId, task }) => {});
+workflowEngine.on("task:failed", ({ workflowId, task, error }) => {});
+
+// State events
+stateManager.on("state:updated", ({ workflowId, updates }) => {});
+stateManager.on("snapshot:created", (snapshot) => {});
+```
+
+## Configuration
+
+```typescript
+const orchestrator = new MultiAgentOrchestrator();
+
+// Configure workflow engine
+const engine = new WorkflowEngine(
+  messageBus,
+  agentRegistry,
+  taskQueue,
+  {
+    maxRetries: 3,
+    retryDelay: 5000,
+    timeout: 300000,
+    checkpointInterval: 60000,
+    enableRollback: true
+  }
+);
+```
+
+## Testing
 
 ```bash
-# Run all tests
-bun test
-
-# Run specific test suite
-bun test tests/communication/
-
-# Run with coverage
-bun test --coverage
+# Run tests
+npm test
 
 # Watch mode
-bun test --watch
+npm run test:watch
+
+# Coverage
+npm run test:coverage
 ```
 
-## 📦 Project Structure
+## Examples
 
-```
-packages/agent-orchestrator/
-├── src/
-│   ├── agents/              # All agent implementations
-│   │   ├── base-agent.ts    # Abstract base class
-│   │   ├── project-manager/
-│   │   ├── research/
-│   │   ├── architecture/
-│   │   ├── coder/
-│   │   ├── testing/
-│   │   ├── debug/
-│   │   ├── documentation/
-│   │   ├── devops/
-│   │   └── security/
-│   ├── communication/       # Message bus & registry
-│   ├── repository/          # Git operations
-│   ├── orchestrator/        # Workflow engine
-│   ├── workflows/           # PRD parser & scheduler
-│   ├── state/              # State management
-│   ├── server/             # API & WebSocket servers
-│   ├── notifications/       # Alert system
-│   └── types/              # TypeScript definitions
-├── ui/                     # Web interface
-├── tests/                  # Test suites
-├── docs/                   # Documentation
-└── examples/               # Example PRDs
+See the `examples/` directory for complete examples:
 
-## 🤝 Contributing
+- `simple-workflow.ts` - Basic workflow creation
+- `multi-phase.ts` - Multi-phase execution
+- `error-handling.ts` - Error recovery and rollback
+- `state-management.ts` - State snapshots and rollback
 
-Contributions are welcome! Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+## Contributing
 
-### Development Workflow
+Contributions are welcome! Please read our [Contributing Guide](../../CONTRIBUTING.md) for details.
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feat/amazing-feature`)
-3. Make your changes
-4. Write/update tests
-5. Run tests (`bun test`)
-6. Commit your changes (`git commit -m 'Add amazing feature'`)
-7. Push to the branch (`git push origin feat/amazing-feature`)
-8. Open a Pull Request
+## License
 
-## 📋 Roadmap
-
-See [IMPLEMENTATION_ROADMAP.md](./docs/IMPLEMENTATION_ROADMAP.md) for the detailed development plan.
-
-### Current Phase: Foundation (Steps 1-6)
-
-- [x] Step 1: Package structure and configuration
-- [ ] Step 2: Core domain types
-- [ ] Step 3: Communication message types
-- [ ] Step 4: Message bus implementation
-- [ ] Step 5: Agent registry and message queue
-- [ ] Step 6: Communication tests
-
-### Upcoming Phases
-
-- Phase 2: Agent Implementation (Steps 7-25)
-- Phase 3: Repository Management (Steps 26-28)
-- Phase 4: Orchestration (Steps 29-32)
-- Phase 5: Integration (Steps 33-34)
-
-## 📄 License
-
-MIT License - see [LICENSE](../../LICENSE) for details.
-
-## 🙏 Acknowledgments
-
-Built on the [ElizaOS](https://github.com/elizaos/eliza) framework.
-
-## 📞 Support
-
-- 📧 Email: support@elizaos.com
-- 💬 Discord: [Join our community](https://discord.gg/elizaos)
-- 🐛 Issues: [GitHub Issues](https://github.com/elizaos/eliza/issues)
-
----
-
-**Note**: This package is under active development. APIs may change before v1.0.0 release.
+MIT © ElizaOS Contributors
 
