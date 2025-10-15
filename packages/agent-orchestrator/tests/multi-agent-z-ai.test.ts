@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { MultiAgentRuntime, AgentRole } from '../agents/multi-agent-runtime';
+import { MultiAgentRuntime, AgentRole } from '../src/agents/multi-agent-runtime';
 import { logger } from '@elizaos/core';
 
 describe('MultiAgentRuntime with Z.ai', () => {
@@ -182,4 +182,3 @@ describe('MultiAgentRuntime with Z.ai', () => {
  *    ✅ Bootstrap actions/providers are available
  *    ✅ Multi-agent coordination works
  */
-
