@@ -117,18 +117,26 @@ Your responsibilities:
 - Coordinate work across multiple agents
 - Track progress and manage workflow
 
+**REQUIRED**: Your response MUST include:
+1. A clear task breakdown (use words: "task", "phase", or "step")
+2. Dependency information (use words: "dependencies", "depends on", or "requires")
+3. Effort estimates (use words: "complexity", "estimate", "time", or "effort")
+
 Respond with structured plans including:
-- Task lists with priorities
-- Dependencies
-- Time estimates
+- Task lists with priorities and numbers
+- Dependencies between tasks (clearly labeled)
+- Time estimates or complexity ratings (low/medium/high)
 - Agent assignments
 - Risk assessment
+- Mermaid diagrams for dependencies when helpful
 
 MCP Tools Available:
 - File system operations (read/write/search)
 - Git operations (status, diff, log)
 - Linear/GitHub project management
-- Code analysis tools`
+- Code analysis tools
+
+Format your response with clear headers and structured sections.`
   },
   {
     name: 'Research Agent',
@@ -169,6 +177,11 @@ Your responsibilities:
 - Plan database schema
 - Consider scalability and performance
 
+**REQUIRED**: For real-time/chat applications, your response MUST include:
+1. Architecture diagrams in Mermaid format (start with \`\`\`mermaid)
+2. Specific mention of real-time technologies (WebSocket, Socket.io, pub/sub, etc.)
+3. Component descriptions with clear responsibilities
+
 MCP Tools Available:
 - Codebase analysis tools
 - Diagram generation (Mermaid)
@@ -176,11 +189,20 @@ MCP Tools Available:
 - Architecture documentation
 
 Respond with:
-- Architecture diagrams (Mermaid format)
-- Component descriptions
-- Interface definitions
-- Data flow diagrams
-- Technology recommendations`
+- Architecture diagrams (Mermaid format - REQUIRED for system design questions)
+- Component descriptions with detailed responsibilities
+- Interface definitions (TypeScript/OpenAPI format)
+- Data flow diagrams or sequence diagrams
+- Technology recommendations with justification
+- Scalability considerations
+
+Always use Mermaid syntax for diagrams:
+\`\`\`mermaid
+graph TD
+  A[Component] --> B[Component]
+\`\`\`
+
+Format with clear headers and sections.`
   },
   {
     name: 'Coder Agent',
@@ -364,10 +386,14 @@ Requirements:
 
 Create a detailed implementation plan.`,
       expectedCapabilities: ['planning', 'task_breakdown'],
-      validation: (response) => 
-        response.includes('task') && 
-        response.includes('dependencies') &&
-        (response.includes('complexity') || response.includes('estimate'))
+      validation: (response) => {
+        const lower = response.toLowerCase();
+        return (
+          (lower.includes('task') || lower.includes('phase') || lower.includes('step')) && 
+          (lower.includes('dependencies') || lower.includes('dependency') || lower.includes('depends')) &&
+          (lower.includes('complexity') || lower.includes('estimate') || lower.includes('time') || lower.includes('effort'))
+        );
+      }
     },
     {
       name: 'Estimate Task Complexity',
@@ -435,9 +461,12 @@ Which is better and why?`,
 
 Provide architecture diagram in Mermaid format and component descriptions.`,
       expectedCapabilities: ['system_design', 'architecture'],
-      validation: (response) =>
-        (response.includes('```mermaid') || response.includes('diagram')) &&
-        (response.includes('websocket') || response.includes('socket'))
+      validation: (response) => {
+        const lower = response.toLowerCase();
+        const hasDiagram = response.includes('```mermaid') || lower.includes('diagram') || lower.includes('architecture');
+        const hasRealtimeTech = lower.includes('websocket') || lower.includes('socket') || lower.includes('real-time') || lower.includes('realtime');
+        return hasDiagram && hasRealtimeTech;
+      }
     },
     {
       name: 'Database Schema Design',
@@ -875,4 +904,3 @@ main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
-
