@@ -7,6 +7,15 @@ export { StateManager } from "./workflow/StateManager.js";
 export { RepositoryAnalyzer } from "./repository/RepositoryAnalyzer.js";
 export { PRDParser } from "./prd/PRDParser.js";
 
+// Enhanced Multi-Agent Runtime exports
+export {
+  EnhancedMultiAgentRuntime,
+  createEnhancedMultiAgentRuntime,
+  AgentRole,
+  type AgentConfig,
+  type MCPServerConfig
+} from "./agents/enhanced-multi-agent-runtime.js";
+
 // Type exports
 export type {
   Message,
@@ -193,4 +202,3 @@ export class MultiAgentOrchestrator {
 
 // Export default instance
 export default MultiAgentOrchestrator;
-
