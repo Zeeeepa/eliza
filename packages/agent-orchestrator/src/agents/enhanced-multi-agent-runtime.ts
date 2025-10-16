@@ -86,18 +86,44 @@ export class EnhancedMultiAgentRuntime {
     // Default plugins if none provided
     const plugins = config.plugins || [bootstrapPlugin];
 
-    // Model provider configuration
-    const modelProvider = config.modelProvider || 
-      (process.env.ANTHROPIC_BASE_URL ? ModelProviderName.ANTHROPIC : ModelProviderName.ANTHROPIC);
+    // ✅ PROPERLY configure character with settings
+    const character: Character = {
+      ...config.character,
+      // Ensure required fields exist
+      name: config.character.name || roleKey,
+      bio: config.character.bio || [`I am ${roleKey}, a helpful AI agent.`],
+      // ✅ CORRECT: Put model provider and API keys in character.settings
+      settings: {
+        ...config.character.settings,
+        // Model provider configuration
+        MODEL_PROVIDER: config.modelProvider || process.env.MODEL_PROVIDER || 'anthropic',
+        // API credentials (Z.ai compatible)
+        ANTHROPIC_API_KEY: config.token || 
+                          process.env.ANTHROPIC_AUTH_TOKEN || 
+                          process.env.ANTHROPIC_API_KEY ||
+                          '',
+        ANTHROPIC_BASE_URL: process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com',
+        ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022',
+      },
+      // Store secrets separately
+      secrets: {
+        ...config.character.secrets,
+        ANTHROPIC_API_KEY: config.token || 
+                          process.env.ANTHROPIC_AUTH_TOKEN || 
+                          process.env.ANTHROPIC_API_KEY ||
+                          '',
+      }
+    };
 
-    // Create runtime with Eliza's standard setup
+    // ✅ CORRECT: Create runtime with proper constructor signature
     const runtime = new AgentRuntime({
-      character: config.character,
+      character,
       plugins,
-      modelProvider,
-      databaseAdapter: undefined, // Will be injected by sqlPlugin if configured
-      token: config.token || process.env.ANTHROPIC_AUTH_TOKEN || process.env.ANTHROPIC_API_KEY,
-      debugMode: process.env.DEBUG === 'true'
+      adapter: undefined, // ✅ CORRECT parameter name (not databaseAdapter)
+      settings: {
+        // Runtime settings (optional overrides)
+        ...character.settings
+      }
     });
 
     // Register custom tools/actions if provided
@@ -135,19 +161,8 @@ export class EnhancedMultiAgentRuntime {
 
     logger.info(`[EnhancedMultiAgentRuntime] Adding plugin to ${agentRole}`);
 
-    // Register plugin's actions
-    if (plugin.actions) {
-      for (const action of plugin.actions) {
-        await this.registerToolForRuntime(agent, action);
-      }
-    }
-
-    // Register plugin's providers
-    if (plugin.providers) {
-      for (const provider of plugin.providers) {
-        agent.registerMemoryManager(provider);
-      }
-    }
+    // ✅ CORRECT: Use registerPlugin which handles everything
+    await agent.registerPlugin(plugin);
 
     logger.info(`[EnhancedMultiAgentRuntime] ✅ Plugin added to ${agentRole}`);
   }
@@ -410,9 +425,8 @@ export class EnhancedMultiAgentRuntime {
    * Register a tool/action to a runtime
    */
   private async registerToolForRuntime(runtime: IAgentRuntime, action: Action): Promise<void> {
-    // Register action with runtime
-    (runtime as any).actions = (runtime as any).actions || [];
-    (runtime as any).actions.push(action);
+    // ✅ CORRECT: Use the registerAction API instead of direct manipulation
+    runtime.registerAction(action);
 
     logger.debug(`[EnhancedMultiAgentRuntime] Registered action: ${action.name}`);
   }
@@ -479,15 +493,8 @@ export class EnhancedMultiAgentRuntime {
       unique: false
     });
 
-    // 4. Compose state with PROPER flags
-    const state: State = await agent.composeState(userMemory, {
-      composerNames: [
-        'RECENT_MESSAGES',
-        'ACTION_STATE', 
-        'FACTS',
-        'KNOWLEDGE'
-      ]
-    });
+    // 4. ✅ CORRECT: Compose state (automatic composition based on providers)
+    const state: State = await agent.composeState(userMemory);
 
     // 5. Create response memories array
     const responses: Memory[] = [];
