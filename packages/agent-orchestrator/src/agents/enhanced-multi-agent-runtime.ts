@@ -15,10 +15,14 @@ import {
   type IAgentRuntime,
   type Plugin,
   type Action,
+  type ActionResult,
+  type HandlerCallback,
   ModelProviderName,
   logger,
   type Memory,
-  type State
+  type State,
+  type Evaluator,
+  type Provider
 } from '@elizaos/core';
 import { bootstrapPlugin } from '@elizaos/plugin-bootstrap';
 import { sqlPlugin } from '@elizaos/plugin-sql';
@@ -224,26 +228,95 @@ export class EnhancedMultiAgentRuntime {
         const { tools } = await client.listTools();
         logger.info(`[EnhancedMultiAgentRuntime] MCP server ${mcpConfig.name} provides ${tools.length} tools`);
 
-        // Convert MCP tools to Eliza actions
+        // Convert MCP tools to Eliza actions with PROPER handler pattern
         for (const mcpTool of tools) {
           const action: Action = {
             name: `mcp_${mcpConfig.name}_${mcpTool.name}`,
-            similes: [mcpTool.name],
+            similes: [mcpTool.name, `use ${mcpTool.name}`, `call ${mcpTool.name}`],
             description: mcpTool.description || `MCP tool: ${mcpTool.name}`,
-            examples: [],
-            validate: async () => true,
-            handler: async (runtime, message, state) => {
+            examples: [
+              [
+                {
+                  user: '{{user1}}',
+                  content: {
+                    text: `Use ${mcpTool.name} to help me`
+                  }
+                },
+                {
+                  user: '{{agentName}}',
+                  content: {
+                    text: 'I will use the tool to help you',
+                    action: `mcp_${mcpConfig.name}_${mcpTool.name}`
+                  }
+                }
+              ]
+            ],
+            validate: async (runtime, message) => {
+              // Check if message content mentions this tool
+              const text = message.content?.text?.toLowerCase() || '';
+              return text.includes(mcpTool.name.toLowerCase());
+            },
+            // CORRECT HANDLER PATTERN - Returns ActionResult and uses callback
+            handler: async (
+              runtime: IAgentRuntime,
+              message: Memory,
+              state?: State,
+              options?: any,
+              callback?: HandlerCallback
+            ): Promise<ActionResult> => {
               try {
-                // Call MCP tool
+                logger.info(`[MCP] Executing tool: ${mcpTool.name}`);
+
+                // 1. Parse arguments from message content
+                const args = this.parseToolArguments(message, mcpTool.inputSchema);
+                
+                // 2. Call MCP tool
                 const result = await client.callTool({
                   name: mcpTool.name,
-                  arguments: message.content
+                  arguments: args
                 });
 
-                return true;
-              } catch (error) {
-                logger.error(`[MCP Tool Error] ${mcpTool.name}:`, error);
-                return false;
+                // 3. Format result text
+                const resultText = this.formatMCPResult(result);
+                
+                // 4. Send result to user via callback
+                if (callback) {
+                  await callback({
+                    text: resultText,
+                    action: action.name,
+                    source: 'mcp'
+                  });
+                }
+                
+                // 5. Return ActionResult for chaining
+                return {
+                  success: true,
+                  text: resultText,
+                  values: result.content || {},
+                  data: { 
+                    toolName: mcpTool.name, 
+                    result: result,
+                    mcpServer: mcpConfig.name
+                  }
+                };
+              } catch (error: any) {
+                const errorMsg = `Error executing MCP tool ${mcpTool.name}: ${error.message}`;
+                logger.error(`[MCP Tool Error]`, error);
+                
+                // Send error to user
+                if (callback) {
+                  await callback({ 
+                    text: errorMsg, 
+                    error: true 
+                  });
+                }
+                
+                // Return failure ActionResult
+                return { 
+                  success: false, 
+                  error: errorMsg,
+                  text: errorMsg
+                };
               }
             }
           };
@@ -260,6 +333,76 @@ export class EnhancedMultiAgentRuntime {
         logger.error(`[EnhancedMultiAgentRuntime] ❌ Failed to initialize MCP server ${mcpConfig.name}:`, error);
         throw error;
       }
+    }
+  }
+
+  /**
+   * Parse tool arguments from message content
+   */
+  private parseToolArguments(message: Memory, inputSchema: any): any {
+    try {
+      // Try to parse structured arguments from message content
+      const content = message.content;
+      
+      if (typeof content === 'object' && content !== null) {
+        // If content has an args or arguments field, use that
+        if ('args' in content) return content.args;
+        if ('arguments' in content) return content.arguments;
+        
+        // If content has tool parameters, extract them
+        if (inputSchema?.properties) {
+          const args: any = {};
+          for (const prop of Object.keys(inputSchema.properties)) {
+            if (prop in content) {
+              args[prop] = content[prop];
+            }
+          }
+          if (Object.keys(args).length > 0) return args;
+        }
+      }
+      
+      // Fallback: try to parse text as JSON or use as string
+      const text = content?.text || String(content);
+      try {
+        return JSON.parse(text);
+      } catch {
+        // If not JSON, return as object with text field
+        return { input: text };
+      }
+    } catch (error) {
+      logger.warn(`[MCP] Failed to parse tool arguments:`, error);
+      return {};
+    }
+  }
+
+  /**
+   * Format MCP result for display
+   */
+  private formatMCPResult(result: any): string {
+    try {
+      if (!result) return 'Tool executed successfully (no result)';
+      
+      // If result has content array, format each content item
+      if (Array.isArray(result.content)) {
+        return result.content.map((item: any) => {
+          if (item.type === 'text') return item.text;
+          if (item.type === 'image') return `[Image: ${item.data}]`;
+          if (item.type === 'resource') return `[Resource: ${item.uri}]`;
+          return JSON.stringify(item);
+        }).join('\n');
+      }
+      
+      // If result has text field, use it
+      if (result.text) return result.text;
+      
+      // If result has data, stringify it
+      if (result.data) return JSON.stringify(result.data, null, 2);
+      
+      // Fallback to stringifying entire result
+      return JSON.stringify(result, null, 2);
+    } catch (error) {
+      logger.warn(`[MCP] Failed to format result:`, error);
+      return String(result);
     }
   }
 
@@ -296,7 +439,7 @@ export class EnhancedMultiAgentRuntime {
   }
 
   /**
-   * Send a message to a specific agent using Eliza's message system
+   * Send a message to a specific agent using PROPER Eliza's message flow
    */
   async sendMessage(
     role: string,
@@ -309,27 +452,142 @@ export class EnhancedMultiAgentRuntime {
       throw new Error(`Agent ${role} not found`);
     }
 
-    // Create message using Eliza's Memory type
-    const memory: Memory = {
+    logger.info(`[EnhancedMultiAgentRuntime] ${role} processing: "${message}"`);
+
+    // 1. Create user message memory
+    const userMemory: Memory = {
       id: crypto.randomUUID(),
       userId: userId as any,
       agentId: agent.agentId,
       roomId: roomId as any,
       content: {
         text: message,
-        type: 'text' as const
+        type: 'text' as const,
+        source: 'user'
       },
       createdAt: Date.now(),
       embedding: undefined
     };
 
-    // Create empty state
-    const state: State = await agent.composeState(memory);
+    // 2. Store user message in memory
+    await agent.createMemory(userMemory);
 
-    // Process message through agent's action pipeline
-    const response = await agent.processActions(memory, [memory], state);
+    // 3. Get recent conversation history for context
+    const recentMessages = await agent.getMemories({
+      roomId: roomId as any,
+      count: 10,
+      unique: false
+    });
 
-    return response || [];
+    // 4. Compose state with PROPER flags
+    const state: State = await agent.composeState(userMemory, {
+      composerNames: [
+        'RECENT_MESSAGES',
+        'ACTION_STATE', 
+        'FACTS',
+        'KNOWLEDGE'
+      ]
+    });
+
+    // 5. Create response memories array
+    const responses: Memory[] = [];
+    
+    // 6. Create callback to capture agent responses
+    const callback: HandlerCallback = async (response) => {
+      const responseMemory: Memory = {
+        id: crypto.randomUUID(),
+        userId: agent.agentId,
+        agentId: agent.agentId,
+        roomId: roomId as any,
+        content: {
+          text: response.text || '',
+          type: 'text' as const,
+          source: 'agent',
+          action: response.action,
+          ...response
+        },
+        createdAt: Date.now(),
+        embedding: undefined
+      };
+
+      // Store response in memory
+      await agent.createMemory(responseMemory);
+      responses.push(responseMemory);
+
+      logger.debug(`[${role}] Response: ${response.text?.substring(0, 100)}...`);
+    };
+
+    try {
+      // 7. Process actions through Eliza's pipeline
+      await agent.processActions(userMemory, [userMemory], state, callback);
+
+      // 8. Run evaluators for post-interaction learning
+      await this.runEvaluators(agent, userMemory, responses, state);
+
+      logger.info(`[EnhancedMultiAgentRuntime] ${role} generated ${responses.length} responses`);
+
+      return responses;
+    } catch (error: any) {
+      logger.error(`[EnhancedMultiAgentRuntime] Error in ${role}:`, error);
+      
+      // Create error response
+      const errorMemory: Memory = {
+        id: crypto.randomUUID(),
+        userId: agent.agentId,
+        agentId: agent.agentId,
+        roomId: roomId as any,
+        content: {
+          text: `Error: ${error.message}`,
+          type: 'text' as const,
+          source: 'agent',
+          error: true
+        },
+        createdAt: Date.now(),
+        embedding: undefined
+      };
+      
+      await agent.createMemory(errorMemory);
+      return [errorMemory];
+    }
+  }
+
+  /**
+   * Run evaluators after interaction (for agent learning & reflection)
+   */
+  private async runEvaluators(
+    runtime: IAgentRuntime,
+    message: Memory,
+    responses: Memory[],
+    state: State
+  ): Promise<void> {
+    if (!runtime.evaluators || runtime.evaluators.length === 0) {
+      return; // No evaluators configured
+    }
+
+    logger.debug(`[EnhancedMultiAgentRuntime] Running ${runtime.evaluators.length} evaluators`);
+
+    for (const evaluator of runtime.evaluators) {
+      try {
+        // Check if evaluator should run
+        if (evaluator.validate) {
+          const shouldRun = await evaluator.validate(runtime, message, state);
+          if (!shouldRun) {
+            logger.debug(`[Evaluator] Skipping ${evaluator.name} - validation failed`);
+            continue;
+          }
+        }
+
+        // Execute evaluator handler
+        await evaluator.handler(runtime, message, state, {
+          responses
+        });
+
+        logger.debug(`[Evaluator] ${evaluator.name} completed`);
+      } catch (error: any) {
+        logger.error(`[Evaluator] Error in ${evaluator.name}:`, error);
+        // Don't throw - evaluator failures shouldn't break the flow
+      }
+    }
   }
 
   /**
@@ -435,4 +693,3 @@ export class EnhancedMultiAgentRuntime {
 export function createEnhancedMultiAgentRuntime(): EnhancedMultiAgentRuntime {
   return new EnhancedMultiAgentRuntime();
 }
-
