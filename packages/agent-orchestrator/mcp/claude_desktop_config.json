@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "agent-orchestrator": {
+      "command": "node",
+      "args": [
+        "/path/to/eliza/packages/agent-orchestrator/mcp/server.js"
+      ],
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  }
+}
+
